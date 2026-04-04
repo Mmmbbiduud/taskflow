@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TaskFlow PRO v6</title>
+<title>TaskFlow with hs.tuanta25</title>
+<img src="icon.png" width="40" style="border-radius:50%;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -584,8 +585,8 @@ body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--t
     <div class="conn-status"><div class="conn-dot gray" id="drive-dot"></div><span id="drive-status-text">Chưa kết nối</span></div>
     <div style="background:var(--bg3);border-radius:8px;padding:11px;border:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.9">
       <b style="color:var(--text2);display:block;margin-bottom:4px">Hướng dẫn sử dụng</b>
-      <span id="step-before">① Nhấn <b style="color:var(--blue)">Đăng nhập Google</b> — chọn đúng tài khoản sở hữu file</span>
-      <span id="step-after" style="display:none">✓ Đã đăng nhập! Tiếp theo:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> — lấy data từ file về app<br>&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> — ghi data hiện tại lên file</span>
+      <span id="step-before-login">① Nhấn <b style="color:var(--blue)">Đăng nhập Google</b> — chọn đúng tài khoản sở hữu file</span>
+      <span id="step-after-login" style="display:none">✓ Đã đăng nhập! Tiếp theo:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> — lấy data từ file về app<br>&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> — ghi data hiện tại lên file</span>
       <span style="color:var(--amber);display:block;margin-top:3px">⚠ File phải do tài khoản đó sở hữu hoặc được share Editor</span>
     </div>
     <div id="drive-debug-wrap" style="display:none">
@@ -609,7 +610,7 @@ body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--t
         &nbsp;● Vào <a href="https://drive.google.com" target="_blank" style="color:var(--blue)">drive.google.com</a> → tìm <code style="background:var(--bg4);padding:1px 4px;border-radius:3px">taskflow_data.json</code><br>
         &nbsp;● Chuột phải → Share → nhập email → chọn <b>Editor</b><br><br>
         <b>Bước 2</b> — Gửi cho đồng nghiệp:<br>
-        &nbsp;● Gửi file HTML + File ID: <code id="share-fid" style="background:var(--bg4);padding:1px 6px;border-radius:3px;cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.textContent);this.style.background='rgba(22,163,74,.2)'">1Tl4ciVkxn_JnNG9zvR69MmZ_FMU_4402</code><br><br>
+        &nbsp;● Gửi file HTML + File ID: <code id="share-file-id-display" style="background:var(--bg4);padding:1px 6px;border-radius:3px;cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText(this.textContent);this.style.background='rgba(22,163,74,.2)'">1Tl4ciVkxn_JnNG9zvR69MmZ_FMU_4402</code><br><br>
         <b>Bước 3</b> — Đồng nghiệp:<br>
         &nbsp;● Mở file HTML → Drive → dán File ID → Đăng nhập → Tải từ Drive
       </div>
@@ -617,7 +618,7 @@ body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--t
     <div class="modal-footer" style="padding-top:0;gap:6px">
       <button class="btn-cancel" onclick="closeDriveModal()">Đóng</button>
       <button class="tb-btn" onclick="toggleDriveDebug()" style="font-size:11px">Debug</button>
-      <button class="tb-btn" onclick="driveReset()" style="font-size:11px;color:var(--red);border-color:var(--red-dim)" title="Xóa File ID cũ bị lỗi, ngắt kết nối để bắt đầu lại">&#8634; Reset</button>
+      <button class="tb-btn" onclick="driveReset()" style="font-size:11px;color:var(--red)" title="Xóa File ID cũ, ngắt kết nối để bắt đầu lại">&#8634; Reset</button>
       <button class="tb-btn" id="drive-load-btn" onclick="driveLoad()" style="display:none">Tải từ Drive</button>
       <button class="btn-save" id="drive-save-btn" onclick="driveSave()" style="display:none">Lưu lên Drive</button>
       <button class="btn-save" id="drive-signin-btn" onclick="driveSignIn()">Đăng nhập Google</button>
@@ -684,7 +685,7 @@ var TD={
     {icon:'!',bg:'#FEE2E2',tc:'#991B1B',text:'"A/B test" bị chặn, cần xử lý gấp',time:'2 ngày trước',read:true}
   ]};
 TD.driveConnected=false;TD.driveFileId='';TD.driveFileName='taskflow_data.json';
-TD.view='dash';TD.proj='all';TD.filter='all';TD.assigneeFilter='all';TD.timeFilter='all';TD.selectedId=null;TD.sbOpen=false;
+TD.view='dash';TD.proj='all';TD.filter='all';TD.assigneeFilter='all';TD.timeFilter='all';TD.timeOffset=0;TD.selectedId=null;TD.sbOpen=false;
 
 /* App config — editable via Setup modal */
 var CFG = {
@@ -895,14 +896,14 @@ function renderDash(){
   var _ns='width:22px;height:22px;border:1px solid var(--border2);background:var(--bg2);border-radius:5px;cursor:pointer;font-size:14px;color:var(--text2);display:inline-flex;align-items:center;justify-content:center;font-family:inherit';
   var _showNav=(_dashP!=='all');
   var html='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:13px">'
-    +'<span class="section-title" style="flex:1">T\u1ed5ng quan \u2014 <b style="color:var(--blue)">'+_dashPeriodLabel()+'</b></span>'
+    +'<span class="section-title" style="flex:1">Tổng quan — <b style="color:var(--blue)">'+_dashPeriodLabel()+'</b></span>'
     +'<div style="display:flex;align-items:center;gap:5px">'
-    +(_showNav?'<button id="dp-prev" style="'+_ns+'">\u2039</button><button id="dp-next" style="'+_ns+'">\u203a</button>':'')
+    +(_showNav?'<button id="dp-prev" style="'+_ns+'">‹</button><button id="dp-next" style="'+_ns+'">›</button>':'')
     +'<div class="dash-period-tabs">'
-    +'<button class="dash-period-tab'+(_dashP==='all'?' act':'')+'" data-p="all">T\u1ea5t c\u1ea3</button>'
-    +'<button class="dash-period-tab'+(_dashP==='week'?' act':'')+'" data-p="week">Tu\u1ea7n</button>'
-    +'<button class="dash-period-tab'+(_dashP==='month'?' act':'')+'" data-p="month">Th\u00e1ng</button>'
-    +'<button class="dash-period-tab'+(_dashP==='year'?' act':'')+'" data-p="year">N\u0103m</button>'
+    +'<button class="dash-period-tab'+(_dashP==='all'?' act':'')+'" data-p="all">Tất cả</button>'
+    +'<button class="dash-period-tab'+(_dashP==='week'?' act':'')+'" data-p="week">Tuần</button>'
+    +'<button class="dash-period-tab'+(_dashP==='month'?' act':'')+'" data-p="month">Tháng</button>'
+    +'<button class="dash-period-tab'+(_dashP==='year'?' act':'')+'" data-p="year">Năm</button>'
     +'</div></div></div>';
   html+='<div class="stat-grid">';
   html+=_sc('var(--blue-dim)','var(--blue)','M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11',total,'T\u1ed5ng c\u00f4ng vi\u1ec7c','','');
@@ -919,9 +920,8 @@ function renderDash(){
   html+=_miniTable(ft.slice(0,5))+'</div>';
   el.innerHTML=html;
   el.querySelectorAll('.dash-period-tab').forEach(function(btn){btn.addEventListener('click',function(){_dashP=btn.dataset.p;_dashOff=0;renderDash();});});
-  var dpPrev=document.getElementById('dp-prev');var dpNext=document.getElementById('dp-next');
-  if(dpPrev)dpPrev.addEventListener('click',function(){_dashOff--;renderDash();});
-  if(dpNext)dpNext.addEventListener('click',function(){_dashOff++;renderDash();});
+  var dpPrev=document.getElementById('dp-prev');if(dpPrev)dpPrev.addEventListener('click',function(){_dashOff--;renderDash();});
+  var dpNext=document.getElementById('dp-next');if(dpNext)dpNext.addEventListener('click',function(){_dashOff++;renderDash();});
   el.querySelectorAll('.mini-row').forEach(function(row){row.addEventListener('click',function(){goToTask(+row.dataset.id);});});
   var vab=document.getElementById('va-btn');if(vab)vab.addEventListener('click',function(){goTo('list');});
 }
@@ -959,40 +959,28 @@ function _makeFilterBar(extraClass){
   asSel.innerHTML='<option value="all">Tất cả người phụ trách</option>'+CFG.members.map(function(m){return '<option value="'+h(m)+'"'+(TD.assigneeFilter===m?' selected':'')+'>'+h(m)+'</option>';}).join('');
   asSel.addEventListener('change',function(){TD.assigneeFilter=this.value;renderCurrent();});
   wrap.appendChild(asSel);
-  /* ── Time filter: mode selector + navigator ── */
+  /* Time filter: mode selector + ‹ › navigator */
   var timeWrap=document.createElement('div');timeWrap.style.cssText='display:flex;align-items:center;gap:4px';
   var modeSel=document.createElement('select');
   modeSel.style.cssText='height:28px;background:var(--bg2);border:1px solid var(--border2);border-radius:7px;font-size:11px;color:var(--text2);padding:0 8px;cursor:pointer;font-family:inherit';
   modeSel.innerHTML='<option value="all">Tất cả</option><option value="week">Tuần</option><option value="month">Tháng</option><option value="year">Năm</option>';
   modeSel.value=(['week','month','year'].indexOf(TD.timeFilter)>=0?TD.timeFilter:'all');
-  function _navBtn(ch){var b=document.createElement('button');b.style.cssText='width:24px;height:28px;border:1px solid var(--border2);background:var(--bg2);border-radius:6px;cursor:pointer;font-size:14px;color:var(--text2);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;font-family:inherit';b.textContent=ch;return b;}
-  var prevBtn=_navBtn('\u2039');var nextBtn=_navBtn('\u203a');
-  var labelEl=document.createElement('span');
-  labelEl.style.cssText='font-size:11px;color:var(--text1);min-width:90px;text-align:center;font-weight:500;white-space:nowrap';
-  if(typeof TD.timeOffset==='undefined')TD.timeOffset=0;
-  function _updateTimeLabel(){
-    var mode=TD.timeFilter,off=TD.timeOffset||0,now=new Date();
-    var show=(mode&&mode!=='all');
-    labelEl.style.display=show?'':'none';prevBtn.style.display=show?'':'none';nextBtn.style.display=show?'':'none';
+  var prevBtn2=document.createElement('button');prevBtn2.style.cssText='width:24px;height:28px;border:1px solid var(--border2);background:var(--bg2);border-radius:6px;cursor:pointer;font-size:14px;color:var(--text2);display:flex;align-items:center;justify-content:center;font-family:inherit';prevBtn2.textContent='‹';
+  var nextBtn2=document.createElement('button');nextBtn2.style.cssText='width:24px;height:28px;border:1px solid var(--border2);background:var(--bg2);border-radius:6px;cursor:pointer;font-size:14px;color:var(--text2);display:flex;align-items:center;justify-content:center;font-family:inherit';nextBtn2.textContent='›';
+  var labelEl2=document.createElement('span');labelEl2.style.cssText='font-size:11px;color:var(--text1);min-width:90px;text-align:center;font-weight:500;white-space:nowrap';
+  function _updateTimeLabel2(){
+    var mode=TD.timeFilter,off=TD.timeOffset||0,now=new Date(),show=(mode&&mode!=='all');
+    labelEl2.style.display=show?'':'none';prevBtn2.style.display=show?'flex':'none';nextBtn2.style.display=show?'flex':'none';
     if(!show)return;
-    if(mode==='week'){
-      var base=new Date(now);base.setHours(0,0,0,0);base.setDate(now.getDate()-((now.getDay()+6)%7)+off*7);
-      var end=new Date(base);end.setDate(base.getDate()+6);
-      var fmt=function(d){return d.getDate()+'/'+(d.getMonth()+1);};
-      labelEl.textContent=fmt(base)+'\u2013'+fmt(end)+'/'+base.getFullYear()+(off===0?' \u25bc':'');
-    }else if(mode==='month'){
-      var d2=new Date(now.getFullYear(),now.getMonth()+off,1);
-      var mn=['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
-      labelEl.textContent=mn[d2.getMonth()]+'/'+d2.getFullYear()+(off===0?' \u25bc':'');
-    }else if(mode==='year'){
-      labelEl.textContent='N\u0103m '+(now.getFullYear()+off)+(off===0?' \u25bc':'');
-    }
+    if(mode==='week'){var base=new Date(now);base.setHours(0,0,0,0);base.setDate(now.getDate()-((now.getDay()+6)%7)+off*7);var end=new Date(base);end.setDate(base.getDate()+6);var fmt=function(d){return d.getDate()+'/'+(d.getMonth()+1);};labelEl2.textContent=fmt(base)+'–'+fmt(end)+(off===0?' ▼':'');}
+    else if(mode==='month'){var d2=new Date(now.getFullYear(),now.getMonth()+off,1);var mn=['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];labelEl2.textContent=mn[d2.getMonth()]+'/'+d2.getFullYear()+(off===0?' ▼':'');}
+    else if(mode==='year'){labelEl2.textContent='Năm '+(now.getFullYear()+off)+(off===0?' ▼':'');}
   }
-  modeSel.addEventListener('change',function(){TD.timeFilter=this.value;TD.timeOffset=0;_updateTimeLabel();renderCurrent();});
-  prevBtn.addEventListener('click',function(){TD.timeOffset=(TD.timeOffset||0)-1;_updateTimeLabel();renderCurrent();});
-  nextBtn.addEventListener('click',function(){TD.timeOffset=(TD.timeOffset||0)+1;_updateTimeLabel();renderCurrent();});
-  _updateTimeLabel();
-  timeWrap.appendChild(modeSel);timeWrap.appendChild(prevBtn);timeWrap.appendChild(labelEl);timeWrap.appendChild(nextBtn);
+  modeSel.addEventListener('change',function(){TD.timeFilter=this.value;TD.timeOffset=0;_updateTimeLabel2();renderCurrent();});
+  prevBtn2.addEventListener('click',function(){TD.timeOffset=(TD.timeOffset||0)-1;_updateTimeLabel2();renderCurrent();});
+  nextBtn2.addEventListener('click',function(){TD.timeOffset=(TD.timeOffset||0)+1;_updateTimeLabel2();renderCurrent();});
+  _updateTimeLabel2();
+  timeWrap.appendChild(modeSel);timeWrap.appendChild(prevBtn2);timeWrap.appendChild(labelEl2);timeWrap.appendChild(nextBtn2);
   wrap.appendChild(timeWrap);
   return wrap;
 }
@@ -1516,9 +1504,10 @@ function updateDriveUI(){
   /* Save btn: show when logged in (either init-save or re-save) */
   if(savBtn){
     savBtn.style.display = loggedIn ? '' : 'none';
-    savBtn.textContent = connected ? 'Lưu lên Drive' : 'Lưu lần đầu lên Drive';
+    savBtn.textContent = TD.driveFileId ? 'Lưu lên Drive' : 'Tạo file mới trên Drive';
   }
-  if(ldBtn) { ldBtn.style.display = loggedIn ? '' : 'none'; }
+  /* Load button: show whenever there is a File ID (it handles login internally) */
+  if(ldBtn){ ldBtn.style.display = TD.driveFileId ? '' : 'none'; }
 
   /* Info box */
   if(TD.driveFileId){
@@ -1546,50 +1535,79 @@ function driveSignIn(){
   if(!_gisReady || !_tokenClient){
     showToast('GIS chưa load — thử tải lại trang','#DC2626'); return;
   }
-  var fid = (document.getElementById('drive-file-id')||{}).value;
-  if(fid) fid = fid.trim();
+  /* Save any typed File ID */
+  var fid = ((document.getElementById('drive-file-id')||{}).value||'').trim();
   if(fid) TD.driveFileId = fid;
 
-  /* After login: if have file ID → load, else → create new */
-  _pendingFn = TD.driveFileId ? function(){ driveLoad(true); } : driveCreate;
-
-  /* If already have token, skip popup */
   if(_accessToken){
-    var fn=_pendingFn;_pendingFn=null;fn();
-  } else {
-    _tokenClient.requestAccessToken({prompt:'select_account'});
+    /* Already have token — just update UI so user can choose Load/Save */
+    updateDriveUI();
+    showToast('Đã đăng nhập — chọn Tải hoặc Lưu','#2563EB');
+    return;
   }
+  /* No token yet — request one; after login just update UI (user picks action) */
+  _pendingFn = null; /* do NOT auto-trigger any action after login */
+  _tokenClient.requestAccessToken({prompt:'select_account'});
 }
 
 /* ── Load from Drive ── */
-function driveLoad(afterLogin){
-  var fid = (document.getElementById('drive-file-id')||{}).value;
-  if(fid) fid = fid.trim();
+function driveLoad(){
+  /* Guard 1: GIS not ready */
+  if(!_gisReady || !_tokenClient){
+    showToast('Google API chưa sẵn sàng — thử tải lại trang','#DC2626'); return;
+  }
+  /* Read File ID from input if present */
+  var fid = ((document.getElementById('drive-file-id')||{}).value||'').trim();
   if(fid) TD.driveFileId = fid;
-  if(!TD.driveFileId){ showToast('Nhập File ID trước','#DC2626'); return; }
 
+  /* Guard 2: must have File ID */
+  if(!TD.driveFileId){
+    showToast('Nhập File ID trước rồi bấm Tải','#DC2626'); return;
+  }
+
+  /* Guard 3: need access token — request if missing */
   if(!_accessToken){
-    /* Not logged in → login first, then load */
-    _pendingFn = function(){ driveLoad(true); };
+    _pendingFn = driveLoad; /* retry after login */
     _tokenClient.requestAccessToken({prompt:'select_account'});
     return;
   }
 
+  /* All guards passed — fetch file content */
+  var btn = document.getElementById('drive-load-btn');
+  if(btn) btn.textContent = 'Đang tải...';
   showToast('Đang tải từ Drive...','#2563EB');
-  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media',{
-    headers:{'Authorization':'Bearer '+_accessToken}
+
+  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media', {
+    headers: {'Authorization': 'Bearer '+_accessToken}
   })
   .then(function(r){
-    if(r.status===403||r.status===404){
-      return r.json().then(function(e){ throw e.error||{message:'403/404 — Kiểm tra File ID và quyền truy cập'}; });
+    if(r.status === 401){
+      /* Token expired mid-session */
+      _accessToken = null; updateDriveUI();
+      _pendingFn = driveLoad;
+      _tokenClient.requestAccessToken({prompt:''});
+      throw {message:'__retry__'};
     }
-    if(!r.ok){ return r.json().then(function(e){ throw e.error||e; }); }
+    if(r.status === 403){
+      return r.json().then(function(body){
+        var reason = (body.error&&body.error.message)||'403 — File chưa được share Editor hoặc Drive API chưa bật';
+        throw {message: reason};
+      });
+    }
+    if(r.status === 404){
+      throw {message: '404 — Không tìm thấy file. Kiểm tra lại File ID'};
+    }
+    if(!r.ok){
+      return r.json().then(function(body){ throw body.error||{message:'HTTP '+r.status}; });
+    }
     return r.json();
   })
   .then(function(data){
-    if(!data.tasks){ throw {message:'File không đúng định dạng TaskFlow'}; }
-    TD.tasks   = data.tasks;
-    TD.nextId  = data.nextId || TD.nextId;
+    if(!data || !data.tasks){
+      throw {message: 'File không đúng định dạng TaskFlow (thiếu trường tasks)'};
+    }
+    TD.tasks          = data.tasks;
+    TD.nextId         = data.nextId || TD.nextId;
     TD.driveConnected = true;
     TD.driveFileName  = 'taskflow_data.json';
     _saveLocalDriveState();
@@ -1597,7 +1615,9 @@ function driveLoad(afterLogin){
     showToast('✓ Đã tải '+TD.tasks.length+' tasks từ Drive','#16A34A');
   })
   .catch(function(e){
-    var msg = typeof e==='object'&&e.message ? e.message : JSON.stringify(e);
+    if(btn) btn.textContent = 'Tải từ Drive';
+    if(e && e.message === '__retry__') return; /* silent — retry in progress */
+    var msg = (typeof e==='object' && e.message) ? e.message : JSON.stringify(e);
     showToast('Lỗi tải: '+msg,'#DC2626');
     console.error('driveLoad error', e);
   });
@@ -1605,64 +1625,117 @@ function driveLoad(afterLogin){
 
 /* ── Create new file on Drive ── */
 function driveCreate(){
-  if(!_accessToken){ showToast('Đăng nhập trước','#DC2626'); return; }
-  var fname = ((document.getElementById('drive-filename')||{}).value)||'taskflow_data.json';
-  var json  = JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,createdAt:new Date().toISOString()},null,2);
+  if(!_gisReady || !_tokenClient){
+    showToast('Google API chưa sẵn sàng — thử tải lại trang','#DC2626'); return;
+  }
+  if(!_accessToken){
+    _pendingFn = driveCreate;
+    _tokenClient.requestAccessToken({prompt:'select_account'}); return;
+  }
+  var fname = (((document.getElementById('drive-filename')||{}).value)||'').trim() || 'taskflow_data.json';
+  var json  = JSON.stringify({tasks:TD.tasks, nextId:TD.nextId, createdAt:new Date().toISOString()}, null, 2);
   var mp    = _multipart({name:fname, mimeType:'application/json'}, json);
   showToast('Đang tạo file mới trên Drive...','#2563EB');
-  fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
-    method:'POST', headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':mp.ct}, body:mp.body
+  fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: {'Authorization':'Bearer '+_accessToken, 'Content-Type':mp.ct},
+    body: mp.body
   })
   .then(function(r){ return r.json(); })
   .then(function(d){
     if(d.error) throw d.error;
-    TD.driveFileId   = d.id;
-    TD.driveFileName = fname;
+    TD.driveFileId    = d.id;
+    TD.driveFileName  = fname;
     TD.driveConnected = true;
     _saveLocalDriveState(); updateDriveUI();
-    /* Show the File ID in the input so user can copy */
+    /* Write File ID back into the input AND the share display */
     var fidIn = document.getElementById('drive-file-id');
     if(fidIn) fidIn.value = d.id;
+    var sdp = document.getElementById('share-file-id-display');
+    if(sdp) sdp.textContent = d.id;
+    /* Copy to clipboard automatically */
+    if(navigator.clipboard){ navigator.clipboard.writeText(d.id).catch(function(){}); }
     TD.notifications.unshift({icon:'✓',bg:'rgba(22,163,74,0.1)',tc:'#16A34A',
       text:'Drive: file mới tạo. File ID: '+d.id, time:'Vừa xong', read:false});
     updateBadge();
-    showToast('✓ File tạo xong! File ID: '+d.id+' — đã copy vào ô nhập','#16A34A');
+    showToast('✓ File tạo xong! ID đã copy: '+d.id,'#16A34A');
   })
   .catch(function(e){
-    var msg = typeof e==='object'&&e.message ? e.message : JSON.stringify(e);
+    var msg = (typeof e==='object' && e.message) ? e.message : JSON.stringify(e);
     showToast('Lỗi tạo file: '+msg,'#DC2626'); console.error('driveCreate', e);
   });
 }
 
 /* ── Save to Drive ── */
 function driveSave(){
-  if(!_accessToken){_pendingFn=driveSave;_tokenClient.requestAccessToken({prompt:'select_account'});return;}
-  var btn=document.getElementById('drive-save-btn');
-  if(btn)btn.textContent='Đang lưu...';
-  if(!TD.driveFileId){if(btn)btn.textContent='Lưu lên Drive';driveCreate();return;}
-  var json=JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,savedAt:new Date().toISOString()},null,2);
-  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=id,trashed',{headers:{'Authorization':'Bearer '+_accessToken}})
+  /* Guard 1: GIS ready */
+  if(!_gisReady || !_tokenClient){
+    showToast('Google API chưa sẵn sàng — thử tải lại trang','#DC2626'); return;
+  }
+  /* Guard 2: need token */
+  if(!_accessToken){
+    _pendingFn = driveSave;
+    _tokenClient.requestAccessToken({prompt:'select_account'}); return;
+  }
+  var btn = document.getElementById('drive-save-btn');
+  if(btn) btn.textContent = 'Đang lưu...';
+
+  /* No File ID → create new file instead of failing */
+  if(!TD.driveFileId){
+    if(btn) btn.textContent = 'Lưu lên Drive';
+    driveCreate(); return;
+  }
+
+  var json = JSON.stringify({tasks:TD.tasks, nextId:TD.nextId, savedAt:new Date().toISOString()}, null, 2);
+
+  /* Step 1: verify file still exists before PATCH */
+  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=id,trashed', {
+    headers: {'Authorization': 'Bearer '+_accessToken}
+  })
   .then(function(r){
-    if(r.status===404||r.status===403){TD.driveFileId='';TD.driveConnected=false;_saveLocalDriveState();if(btn)btn.textContent='Lưu lên Drive';showToast('File Drive không còn tồn tại — đang tạo file mới...','#D97706');driveCreate();return Promise.reject('recreate');}
+    if(r.status === 401){
+      _accessToken = null; updateDriveUI();
+      _pendingFn = driveSave;
+      _tokenClient.requestAccessToken({prompt:''});
+      throw {message:'__retry__'};
+    }
+    if(r.status === 404 || r.status === 403){
+      /* File gone — reset and create fresh */
+      TD.driveFileId = ''; TD.driveConnected = false; _saveLocalDriveState();
+      if(btn) btn.textContent = 'Lưu lên Drive';
+      showToast('File cũ không còn tồn tại — đang tạo file mới...','#D97706');
+      driveCreate(); return Promise.reject('__recreate__');
+    }
     return r.json();
   })
   .then(function(meta){
-    if(!meta||meta==='recreate')return;
-    if(meta.trashed){TD.driveFileId='';TD.driveConnected=false;_saveLocalDriveState();if(btn)btn.textContent='Lưu lên Drive';showToast('File Drive đã bị xóa vào thùng rác — đang tạo lại...','#D97706');driveCreate();return;}
-    return fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media',{method:'PATCH',headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},body:json})
-    .then(function(r){return r.status===200||r.status===204?{}:r.json();})
+    if(!meta) return;
+    if(meta.trashed){
+      /* File in trash — create fresh */
+      TD.driveFileId = ''; TD.driveConnected = false; _saveLocalDriveState();
+      if(btn) btn.textContent = 'Lưu lên Drive';
+      showToast('File đã bị xóa vào thùng rác — đang tạo file mới...','#D97706');
+      driveCreate(); return;
+    }
+    /* Step 2: PATCH content */
+    return fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media', {
+      method: 'PATCH',
+      headers: {'Authorization':'Bearer '+_accessToken, 'Content-Type':'application/json'},
+      body: json
+    })
+    .then(function(r){ return (r.status===200||r.status===204) ? {} : r.json(); })
     .then(function(d){
-      if(d&&d.error)throw d.error;
-      if(btn)btn.textContent='Lưu lên Drive';
-      TD.driveConnected=true;_saveLocalDriveState();updateDriveUI();
-      showToast('✓ Đã lưu lên Google Drive','#16A34A');closeDriveModal();
+      if(d && d.error) throw d.error;
+      if(btn) btn.textContent = 'Lưu lên Drive';
+      TD.driveConnected = true; _saveLocalDriveState(); updateDriveUI();
+      showToast('✓ Đã lưu lên Google Drive','#16A34A'); closeDriveModal();
     });
   })
   .catch(function(e){
-    if(e==='recreate')return;
-    if(btn)btn.textContent='Lưu lên Drive';
-    var msg=typeof e==='object'&&e.message?e.message:JSON.stringify(e);
-    showToast('Lỗi lưu: '+msg,'#DC2626');console.error('driveSave',e);
+    if(e === '__recreate__' || (e && e.message === '__retry__')) return;
+    if(btn) btn.textContent = 'Lưu lên Drive';
+    var msg = (typeof e==='object' && e.message) ? e.message : JSON.stringify(e);
+    showToast('Lỗi lưu: '+msg,'#DC2626'); console.error('driveSave', e);
   });
 }
 
@@ -1672,12 +1745,17 @@ function _saveLocalDriveState(){
     connected:TD.driveConnected, fileId:TD.driveFileId, fileName:TD.driveFileName
   }));}catch(e){}
 }
+
+/* ── Hard reset Drive state (use when stuck / file deleted) ── */
 function driveReset(){
-  TD.driveConnected=false;TD.driveFileId='';TD.driveFileName='taskflow_data.json';
-  _accessToken=null;_pendingFn=null;
-  _saveLocalDriveState();updateDriveUI();
-  var fidIn=document.getElementById('drive-file-id');if(fidIn)fidIn.value='';
-  showToast('Đã xóa kết nối Drive — có thể tạo file mới','#2563EB');
+  TD.driveConnected=false; TD.driveFileId=''; TD.driveFileName='taskflow_data.json';
+  _accessToken=null; _pendingFn=null;
+  _saveLocalDriveState(); updateDriveUI();
+  var fidIn=document.getElementById('drive-file-id');
+  if(fidIn) fidIn.value='';
+  var sdp=document.getElementById('share-file-id-display');
+  if(sdp) sdp.textContent='';
+  showToast('Đã reset kết nối Drive — có thể đăng nhập lại','#2563EB');
 }
 
 
@@ -1712,7 +1790,12 @@ function autoSave(){
   try{localStorage.setItem('tf_cfg',JSON.stringify(CFG));}catch(e){}
   if(TD.driveConnected&&_accessToken&&TD.driveFileId){
     var json=JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,cfg:CFG,savedAt:new Date().toISOString()},null,2);
-    fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media',{method:'PATCH',headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},body:json}).then(function(r){if(r.ok){var lbl=document.getElementById('gdrive-label');if(lbl){lbl.textContent='Saved \u2713';setTimeout(function(){if(TD.driveConnected)lbl.textContent='Synced \u2713';},1500);}}}).catch(function(){});
+    fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media',{method:'PATCH',headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},body:json})
+    .then(function(r){
+      if(r.ok){var lbl=document.getElementById('gdrive-label');if(lbl){lbl.textContent='Saved \u2713';setTimeout(function(){if(TD.driveConnected)lbl.textContent='Synced \u2713';},1500);}}
+      else if(r.status===404||r.status===403){TD.driveConnected=false;TD.driveFileId='';_saveLocalDriveState();updateDriveUI();showToast('File Drive kh\u00f4ng c\u00f2n t\u1ed3n t\u1ea1i \u2014 m\u1edf Drive \u0111\u1ec3 t\u1ea1o l\u1ea1i','#D97706');}
+      else if(r.status===401){_accessToken=null;TD.driveConnected=false;_saveLocalDriveState();updateDriveUI();}
+    }).catch(function(){});
   }
 }
 function loadSaved(){
