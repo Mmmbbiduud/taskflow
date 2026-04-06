@@ -3,12 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TaskFlow with hs.tuanta25</title>
-
-<link rel="icon" href="icon.png">
-<link rel="shortcut icon" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
-
+<title>TaskFlow PRO v6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -40,29 +35,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
 body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--text1)}
-/* ===== BACKGROUND MỜ ===== */
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-
-  background: url('icon.png') center/cover no-repeat;
-  filter: blur(14px);
-  transform: scale(1.1);
-
-  z-index: -2;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-
-  background: rgba(255,255,255,0.65);
-
-  z-index: -1;
-}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
@@ -408,7 +380,7 @@ body::after {
 </style>
 </head>
 <body>
-  
+
 <div id="tf">
 
 <!-- SIDEBAR -->
@@ -437,7 +409,7 @@ body::after {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><line x1="6" y1="4" x2="6" y2="8"/><line x1="14" y1="10" x2="14" y2="14"/></svg>
       <span class="nav-i-label">Gantt</span>
     </div>
-    <div class="nav-i" id="ni-review" onclick="goTo('review')">
+    <div class="nav-i" id="ni-review" onclick="goTo('review')" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       <span class="nav-i-label">Đánh giá</span>
     </div>
@@ -789,9 +761,18 @@ function saveUser(){
   if(CFG.members.indexOf(name)<0){CFG.members.push(name);_saveCFG();}
   _applyUser();closeModal2('user-modal');showToast('\u0110\u00e3 l\u01b0u th\u00f4ng tin ng\u01b0\u1eddi d\u00f9ng','#16A34A');
 }
+function isManagerUser(){
+  return CUR_USER.name==='hs.tuanta25' && CUR_USER.role==='Manager';
+}
 function _applyUser(){
   var a=document.getElementById('user-av'),n=document.getElementById('user-name-display'),r=document.getElementById('user-role-display');
   if(a)a.textContent=CUR_USER.initials||av(CUR_USER.name);if(n)n.textContent=CUR_USER.name;if(r)r.textContent=CUR_USER.role||'';
+  /* Phân quyền theo user */
+  var niReview=document.getElementById('ni-review');
+  if(niReview)niReview.style.display=isManagerUser()?'':'none';
+  var savBtn=document.getElementById('drive-save-btn');
+  if(savBtn)savBtn.dataset.managerOnly='1';
+  updateDriveUI();
 }
 function loadUserState(){
   try{var u=localStorage.getItem('tf_user');if(u)CUR_USER=JSON.parse(u);}catch(e){}
@@ -871,6 +852,7 @@ function _populateSelects(){
 }
 function toggleSb(){TD.sbOpen=!TD.sbOpen;document.getElementById('sb').classList.toggle('open',TD.sbOpen);}
 function goTo(v){
+  if(v==='review' && !isManagerUser()){showToast('Bạn không có quyền truy cập tab này','#DC2626');return;}
   TD.view=v;
   var titles={dash:'Dashboard',list:'Danh s\u00e1ch c\u00f4ng vi\u1ec7c',kanban:'Kanban Board',gantt:'Gantt Chart',integrations:'T\u00edch h\u1ee3p',review:'\u0110\u00e1nh gi\u00e1 & C\u1ea3i ti\u1ebfn'};
   document.getElementById('page-title').textContent=titles[v]||v;
@@ -1528,9 +1510,10 @@ function updateDriveUI(){
 
   /* Buttons */
   if(sigBtn){ sigBtn.textContent = loggedIn ? 'Đổi tài khoản' : 'Đăng nhập Google'; }
-  /* Save btn: show when logged in (either init-save or re-save) */
+  /* Save btn: show when logged in AND user is manager */
   if(savBtn){
-    savBtn.style.display = loggedIn ? '' : 'none';
+    var canSave = loggedIn && isManagerUser();
+    savBtn.style.display = canSave ? '' : 'none';
     savBtn.textContent = TD.driveFileId ? 'Lưu lên Drive' : 'Tạo file mới trên Drive';
   }
   /* Load button: show whenever there is a File ID (it handles login internally) */
