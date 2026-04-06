@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TaskFlow Hs.tuanta25</title>
+<title>TaskFlow v8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -1438,37 +1438,41 @@ function gisLoaded(){
     _tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GAPI_CLIENT_ID,
       scope: GAPI_SCOPE,
-      callback: function(resp){
-        if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user'){
-          if(!_silentRefresh) showToast('Đăng nhập bị hủy','#D97706');
-          _silentRefresh = false; return;
-        }
-        if(resp.error){
-          if(!_silentRefresh) showToast('OAuth lỗi: '+resp.error,'#DC2626');
-          _silentRefresh = false; return;
-        }
-        _silentRefresh = false;
-        _accessToken = resp.access_token;
-        /* Đánh dấu đã từng login để silent refresh lần sau */
-        try{ localStorage.setItem('tf_drive_hint','1'); }catch(e){}
-        /* Tự refresh trước khi token hết hạn */
-        if(_refreshTimer) clearTimeout(_refreshTimer);
-        _refreshTimer = setTimeout(function(){ _silentTokenRefresh(); },
-          ((resp.expires_in||3600) - 60) * 1000);
-        updateDriveUI();
-        if(_pendingFn){var fn=_pendingFn;_pendingFn=null;fn();}
-      }
+      callback: _onTokenResponse
     });
-    /* Silent re-auth ngay khi load nếu user đã từng đăng nhập */
-    _silentTokenRefresh();
+    /* Sau khi tokenClient sẵn sàng, thử silent refresh nếu đã login trước đó */
+    setTimeout(_silentTokenRefresh, 200);
   } catch(e){ showToast('GIS init lỗi: '+e.message,'#DC2626'); }
+}
+
+function _onTokenResponse(resp){
+  var wasSilent = _silentRefresh;
+  _silentRefresh = false;
+
+  if(resp.error){
+    if(!wasSilent){
+      if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user')
+        showToast('Đăng nhập bị hủy','#D97706');
+      else
+        showToast('OAuth lỗi: '+resp.error,'#DC2626');
+    }
+    return;
+  }
+
+  _accessToken = resp.access_token;
+  try{ localStorage.setItem('tf_drive_hint','1'); }catch(e){}
+
+  if(_refreshTimer) clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(_silentTokenRefresh, ((resp.expires_in||3600) - 60) * 1000);
+
+  updateDriveUI();
+  if(_pendingFn){ var fn=_pendingFn; _pendingFn=null; fn(); }
 }
 
 function _silentTokenRefresh(){
   try{ if(!localStorage.getItem('tf_drive_hint')) return; }catch(e){ return; }
   if(!_gisReady || !_tokenClient) return;
   _silentRefresh = true;
-  /* prompt:'' = dùng Google session có sẵn trong browser, không mở popup */
   _tokenClient.requestAccessToken({ prompt: '' });
 }
 
