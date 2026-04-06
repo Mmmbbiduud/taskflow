@@ -1421,11 +1421,13 @@ function clearNotifs(){TD.notifications=[];_renderNotifs();}
 
 /* ══ GOOGLE DRIVE ══ */
 
-var _gisReady   = false;
+var _gisReady    = false;
 var _tokenClient = null;
 var _accessToken = null;
-var _pendingFn  = null;
-var _dbg        = [];
+var _pendingFn   = null;
+var _dbg         = [];
+var _silentRefresh = false;
+var _refreshTimer  = null;
 
 /* ── GAPI / GIS callbacks ── */
 function gapiLoaded(){ /* not used — pure fetch approach */ }
@@ -1438,20 +1440,36 @@ function gisLoaded(){
       scope: GAPI_SCOPE,
       callback: function(resp){
         if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user'){
-          showToast('Đăng nhập bị hủy','#D97706'); return;
+          if(!_silentRefresh) showToast('Đăng nhập bị hủy','#D97706');
+          _silentRefresh = false; return;
         }
         if(resp.error){
-          showToast('OAuth lỗi: '+resp.error,'#DC2626'); return;
+          if(!_silentRefresh) showToast('OAuth lỗi: '+resp.error,'#DC2626');
+          _silentRefresh = false; return;
         }
+        _silentRefresh = false;
         _accessToken = resp.access_token;
-        /* Token refreshes every ~1h — set timer to clear */
-        setTimeout(function(){_accessToken=null; updateDriveUI();}, (resp.expires_in-60)*1000);
+        /* Đánh dấu đã từng login để silent refresh lần sau */
+        try{ localStorage.setItem('tf_drive_hint','1'); }catch(e){}
+        /* Tự refresh trước khi token hết hạn */
+        if(_refreshTimer) clearTimeout(_refreshTimer);
+        _refreshTimer = setTimeout(function(){ _silentTokenRefresh(); },
+          ((resp.expires_in||3600) - 60) * 1000);
         updateDriveUI();
-        /* Execute pending action */
         if(_pendingFn){var fn=_pendingFn;_pendingFn=null;fn();}
       }
     });
+    /* Silent re-auth ngay khi load nếu user đã từng đăng nhập */
+    _silentTokenRefresh();
   } catch(e){ showToast('GIS init lỗi: '+e.message,'#DC2626'); }
+}
+
+function _silentTokenRefresh(){
+  try{ if(!localStorage.getItem('tf_drive_hint')) return; }catch(e){ return; }
+  if(!_gisReady || !_tokenClient) return;
+  _silentRefresh = true;
+  /* prompt:'' = dùng Google session có sẵn trong browser, không mở popup */
+  _tokenClient.requestAccessToken({ prompt: '' });
 }
 
 /* ── Helpers ── */
@@ -1760,6 +1778,8 @@ function _saveLocalDriveState(){
 function driveReset(){
   TD.driveConnected=false; TD.driveFileId=''; TD.driveFileName='taskflow_data.json';
   _accessToken=null; _pendingFn=null;
+  if(_refreshTimer){clearTimeout(_refreshTimer);_refreshTimer=null;}
+  try{localStorage.removeItem('tf_drive_hint');}catch(e){}
   _saveLocalDriveState(); updateDriveUI();
   var fidIn=document.getElementById('drive-file-id');
   if(fidIn) fidIn.value='';
