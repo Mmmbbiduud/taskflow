@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TaskFlow v8</title>
+<title>TaskFlow Test</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -585,7 +585,7 @@ body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--t
     <div style="background:var(--bg3);border-radius:8px;padding:11px;border:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.9">
       <b style="color:var(--text2);display:block;margin-bottom:4px">Hướng dẫn sử dụng</b>
       <span id="step-before-login">① Nhấn <b style="color:var(--blue)">Đăng nhập Google</b> — chọn đúng tài khoản sở hữu file</span>
-      <span id="step-after-login" style="display:none">✓ Đã đăng nhập! Tiếp theo:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> — lấy data từ file về app<br>&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> — ghi data hiện tại lên file</span>
+      <span id="step-after-login" style="display:none">✓ Đã đăng nhập! Tiếp theo:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> — lấy data từ file về app<br><span id="save-hint-line">&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> — ghi data hiện tại lên file</span></span>
       <span style="color:var(--amber);display:block;margin-top:3px">⚠ File phải do tài khoản đó sở hữu hoặc được share Editor</span>
     </div>
     <div id="drive-debug-wrap" style="display:none">
@@ -663,7 +663,8 @@ body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--t
 
 /* ══ CONFIG ══ */
 var GAPI_CLIENT_ID = '290225606718-pop3ha635b5u29n5bqnajcb5i3l274iq.apps.googleusercontent.com';
-var GAPI_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+var GAPI_SCOPE     = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+var OWNER_EMAIL    = 'hs.tuanta25@gmail.com';
 
 /* ══ DATA ══ */
 var TD={
@@ -761,18 +762,15 @@ function saveUser(){
   if(CFG.members.indexOf(name)<0){CFG.members.push(name);_saveCFG();}
   _applyUser();closeModal2('user-modal');showToast('\u0110\u00e3 l\u01b0u th\u00f4ng tin ng\u01b0\u1eddi d\u00f9ng','#16A34A');
 }
-function isManagerUser(){
-  return CUR_USER.name==='hs.tuanta25' && CUR_USER.role==='Manager';
-}
 function _applyUser(){
   var a=document.getElementById('user-av'),n=document.getElementById('user-name-display'),r=document.getElementById('user-role-display');
   if(a)a.textContent=CUR_USER.initials||av(CUR_USER.name);if(n)n.textContent=CUR_USER.name;if(r)r.textContent=CUR_USER.role||'';
-  /* Phân quyền theo user */
-  var niReview=document.getElementById('ni-review');
-  if(niReview)niReview.style.display=isManagerUser()?'':'none';
-  var savBtn=document.getElementById('drive-save-btn');
-  if(savBtn)savBtn.dataset.managerOnly='1';
-  updateDriveUI();
+  /* Tab Danh gia: chi hien khi username = 'hs.tuanta25' VA role = 'Manager' */
+  var reviewTab=document.getElementById('ni-review');
+  var canReview=(CUR_USER.name==='hs.tuanta25' && CUR_USER.role==='Manager');
+  if(reviewTab) reviewTab.style.display = canReview ? '' : 'none';
+  /* Neu dang o tab review ma khong co quyen -> ve dashboard */
+  if(!canReview && typeof TD!=='undefined' && TD.view==='review') goTo('dash');
 }
 function loadUserState(){
   try{var u=localStorage.getItem('tf_user');if(u)CUR_USER=JSON.parse(u);}catch(e){}
@@ -852,7 +850,6 @@ function _populateSelects(){
 }
 function toggleSb(){TD.sbOpen=!TD.sbOpen;document.getElementById('sb').classList.toggle('open',TD.sbOpen);}
 function goTo(v){
-  if(v==='review' && !isManagerUser()){showToast('Bạn không có quyền truy cập tab này','#DC2626');return;}
   TD.view=v;
   var titles={dash:'Dashboard',list:'Danh s\u00e1ch c\u00f4ng vi\u1ec7c',kanban:'Kanban Board',gantt:'Gantt Chart',integrations:'T\u00edch h\u1ee3p',review:'\u0110\u00e1nh gi\u00e1 & C\u1ea3i ti\u1ebfn'};
   document.getElementById('page-title').textContent=titles[v]||v;
@@ -1421,13 +1418,12 @@ function clearNotifs(){TD.notifications=[];_renderNotifs();}
 
 /* ══ GOOGLE DRIVE ══ */
 
-var _gisReady    = false;
+var _gisReady   = false;
 var _tokenClient = null;
 var _accessToken = null;
-var _pendingFn   = null;
-var _dbg         = [];
-var _silentRefresh = false;
-var _refreshTimer  = null;
+var _pendingFn  = null;
+var _dbg        = [];
+var _signedInEmail = null;
 
 /* ── GAPI / GIS callbacks ── */
 function gapiLoaded(){ /* not used — pure fetch approach */ }
@@ -1438,42 +1434,32 @@ function gisLoaded(){
     _tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: GAPI_CLIENT_ID,
       scope: GAPI_SCOPE,
-      callback: _onTokenResponse
+      callback: function(resp){
+        if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user'){
+          showToast('Đăng nhập bị hủy','#D97706'); return;
+        }
+        if(resp.error){
+          showToast('OAuth lỗi: '+resp.error,'#DC2626'); return;
+        }
+        _accessToken = resp.access_token;
+        /* Token refreshes every ~1h — set timer to clear */
+        setTimeout(function(){_accessToken=null; _signedInEmail=null; updateDriveUI();}, (resp.expires_in-60)*1000);
+        /* Lay email nguoi dung - su dung scope userinfo.email da cap */
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: {'Authorization': 'Bearer '+_accessToken}
+        })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(info){
+          _signedInEmail = (info && info.email) ? info.email : null;
+        })
+        .catch(function(){ _signedInEmail = null; })
+        .finally(function(){
+          updateDriveUI();
+          if(_pendingFn){var fn=_pendingFn;_pendingFn=null;fn();}
+        });
+      }
     });
-    /* Sau khi tokenClient sẵn sàng, thử silent refresh nếu đã login trước đó */
-    setTimeout(_silentTokenRefresh, 200);
   } catch(e){ showToast('GIS init lỗi: '+e.message,'#DC2626'); }
-}
-
-function _onTokenResponse(resp){
-  var wasSilent = _silentRefresh;
-  _silentRefresh = false;
-
-  if(resp.error){
-    if(!wasSilent){
-      if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user')
-        showToast('Đăng nhập bị hủy','#D97706');
-      else
-        showToast('OAuth lỗi: '+resp.error,'#DC2626');
-    }
-    return;
-  }
-
-  _accessToken = resp.access_token;
-  try{ localStorage.setItem('tf_drive_hint','1'); }catch(e){}
-
-  if(_refreshTimer) clearTimeout(_refreshTimer);
-  _refreshTimer = setTimeout(_silentTokenRefresh, ((resp.expires_in||3600) - 60) * 1000);
-
-  updateDriveUI();
-  if(_pendingFn){ var fn=_pendingFn; _pendingFn=null; fn(); }
-}
-
-function _silentTokenRefresh(){
-  try{ if(!localStorage.getItem('tf_drive_hint')) return; }catch(e){ return; }
-  if(!_gisReady || !_tokenClient) return;
-  _silentRefresh = true;
-  _tokenClient.requestAccessToken({ prompt: '' });
 }
 
 /* ── Helpers ── */
@@ -1532,10 +1518,10 @@ function updateDriveUI(){
 
   /* Buttons */
   if(sigBtn){ sigBtn.textContent = loggedIn ? 'Đổi tài khoản' : 'Đăng nhập Google'; }
-  /* Save btn: show when logged in AND user is manager */
+  /* Save btn: chi hien voi tai khoan chu (OWNER_EMAIL), an voi nguoi dung khac */
+  var isOwner = loggedIn && (_signedInEmail === OWNER_EMAIL);
   if(savBtn){
-    var canSave = loggedIn && isManagerUser();
-    savBtn.style.display = canSave ? '' : 'none';
+    savBtn.style.display = isOwner ? '' : 'none';
     savBtn.textContent = TD.driveFileId ? 'Lưu lên Drive' : 'Tạo file mới trên Drive';
   }
   /* Load button: show whenever there is a File ID (it handles login internally) */
@@ -1557,6 +1543,9 @@ function updateDriveUI(){
   var sa = document.getElementById('step-after-login');
   if(sb) sb.style.display = loggedIn ? 'none' : '';
   if(sa) sa.style.display = loggedIn ? '' : 'none';
+  /* Hint luu chi hien voi owner */
+  var saveHintLine = document.getElementById('save-hint-line');
+  if(saveHintLine) saveHintLine.style.display = isOwner ? '' : 'none';
   /* Update share display */
   var sdp = document.getElementById('share-file-id-display');
   if(sdp && TD.driveFileId) sdp.textContent = TD.driveFileId;
@@ -1781,9 +1770,7 @@ function _saveLocalDriveState(){
 /* ── Hard reset Drive state (use when stuck / file deleted) ── */
 function driveReset(){
   TD.driveConnected=false; TD.driveFileId=''; TD.driveFileName='taskflow_data.json';
-  _accessToken=null; _pendingFn=null;
-  if(_refreshTimer){clearTimeout(_refreshTimer);_refreshTimer=null;}
-  try{localStorage.removeItem('tf_drive_hint');}catch(e){}
+  _accessToken=null; _pendingFn=null; _signedInEmail=null;
   _saveLocalDriveState(); updateDriveUI();
   var fidIn=document.getElementById('drive-file-id');
   if(fidIn) fidIn.value='';
