@@ -3,12 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TaskFlow with hs.tuanta25</title>
-
-<link rel="icon" href="icon.png">
-<link rel="shortcut icon" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
-
+<title>TaskFlow Hs.tuanta25</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
@@ -40,29 +35,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
 body{background:var(--bg);font-family:'Geist',system-ui,sans-serif;color:var(--text1)}
-/* ===== BACKGROUND MỜ ===== */
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-
-  background: url('icon.png') center/cover no-repeat;
-  filter: blur(14px);
-  transform: scale(1.1);
-
-  z-index: -2;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-
-  background: rgba(255,255,255,0.65);
-
-  z-index: -1;
-}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
@@ -408,7 +380,7 @@ body::after {
 </style>
 </head>
 <body>
-  
+
 <div id="tf">
 
 <!-- SIDEBAR -->
@@ -437,7 +409,7 @@ body::after {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><line x1="6" y1="4" x2="6" y2="8"/><line x1="14" y1="10" x2="14" y2="14"/></svg>
       <span class="nav-i-label">Gantt</span>
     </div>
-    <div class="nav-i" id="ni-review" onclick="goTo('review')">
+    <div class="nav-i" id="ni-review" onclick="goTo('review')" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       <span class="nav-i-label">Đánh giá</span>
     </div>
@@ -611,10 +583,10 @@ body::after {
     </div>
     <div class="conn-status"><div class="conn-dot gray" id="drive-dot"></div><span id="drive-status-text">Chưa kết nối</span></div>
     <div style="background:var(--bg3);border-radius:8px;padding:11px;border:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.9">
-      <b style="color:var(--text2);display:block;margin-bottom:4px">Hướng dẫn sử dụng</b>
-      <span id="step-before-login">① Nhấn <b style="color:var(--blue)">Đăng nhập Google</b> — chọn đúng tài khoản sở hữu file</span>
-      <span id="step-after-login" style="display:none">✓ Đã đăng nhập! Tiếp theo:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> — lấy data từ file về app<br>&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> — ghi data hiện tại lên file</span>
-      <span style="color:var(--amber);display:block;margin-top:3px">⚠ File phải do tài khoản đó sở hữu hoặc được share Editor</span>
+      <b style="color:var(--text2);display:block;margin-bottom:4px">Hướng dẫn (Team mode)</b>
+      <span id="step-before-login">① Nhấn <b style="color:var(--blue)">Đăng nhập Google</b> bằng tài khoản đã được share Editor</span>
+      <span id="step-after-login" style="display:none">✓ Đã đăng nhập! Quy trình an toàn:<br>&nbsp;▶ <b style="color:var(--blue)">Tải từ Drive</b> trước (lấy bản mới nhất)<br><span id="save-hint-line">&nbsp;▶ Sửa data trên app<br>&nbsp;▶ <b style="color:var(--green)">Lưu lên Drive</b> (sẽ chặn nếu có người khác sửa song song)</span></span>
+      <span style="color:var(--amber);display:block;margin-top:3px">⚠ Luôn Tải trước khi Sửa — tránh ghi đè data đồng đội</span>
     </div>
     <div id="drive-debug-wrap" style="display:none">
       <pre id="drive-debug-log" style="font-size:10px;color:var(--text3);background:var(--bg4);border-radius:6px;padding:8px;max-height:100px;overflow-y:auto;margin:0;white-space:pre-wrap"></pre>
@@ -691,7 +663,12 @@ body::after {
 
 /* ══ CONFIG ══ */
 var GAPI_CLIENT_ID = '290225606718-pop3ha635b5u29n5bqnajcb5i3l274iq.apps.googleusercontent.com';
-var GAPI_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+/* SCOPE: dùng full 'drive' (không phải drive.file) để cho phép multi-user team:
+   user B đăng nhập có thể đọc/ghi file do user A tạo, miễn là được share Editor.
+   drive.file chỉ cho phép truy cập file mà chính app này đã tạo dưới danh nghĩa
+   user hiện tại — không phù hợp với mô hình team dùng chung 1 File ID. */
+var GAPI_SCOPE     = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email';
+var OWNER_EMAIL    = 'hs.tuanta25@gmail.com';
 
 /* ══ DATA ══ */
 var TD={
@@ -712,6 +689,16 @@ var TD={
     {icon:'!',bg:'#FEE2E2',tc:'#991B1B',text:'"A/B test" bị chặn, cần xử lý gấp',time:'2 ngày trước',read:true}
   ]};
 TD.driveConnected=false;TD.driveFileId='';TD.driveFileName='taskflow_data.json';
+TD.driveLastModified='';   /* Drive modifiedTime tại lần load/save gần nhất — dùng cho optimistic locking */
+
+/* ── SYNC STATE (multi-user) ── */
+var _dirty           = false;  /* có thay đổi local chưa flush lên Drive? */
+var _baselineSnap    = '';     /* JSON snapshot của tasks tại baseline (cho 3-way merge) */
+var _autoSaveTimer   = null;   /* debounce timer cho auto-save */
+var _pollTimer       = null;   /* polling interval */
+var _syncing         = false;  /* lock để tránh poll/save chồng lên nhau */
+var POLL_INTERVAL_MS = 5000;
+var AUTOSAVE_DEBOUNCE_MS = 2000;
 TD.view='dash';TD.proj='all';TD.filter='all';TD.assigneeFilter='all';TD.timeFilter='all';TD.timeOffset=0;TD.selectedId=null;TD.sbOpen=false;
 
 /* App config — editable via Setup modal */
@@ -792,6 +779,12 @@ function saveUser(){
 function _applyUser(){
   var a=document.getElementById('user-av'),n=document.getElementById('user-name-display'),r=document.getElementById('user-role-display');
   if(a)a.textContent=CUR_USER.initials||av(CUR_USER.name);if(n)n.textContent=CUR_USER.name;if(r)r.textContent=CUR_USER.role||'';
+  /* Tab Danh gia: chi hien khi username = 'hs.tuanta25' VA role = 'Manager' */
+  var reviewTab=document.getElementById('ni-review');
+  var canReview=(CUR_USER.name==='hs.tuanta25' && CUR_USER.role==='Manager');
+  if(reviewTab) reviewTab.style.display = canReview ? '' : 'none';
+  /* Neu dang o tab review ma khong co quyen -> ve dashboard */
+  if(!canReview && typeof TD!=='undefined' && TD.view==='review') goTo('dash');
 }
 function loadUserState(){
   try{var u=localStorage.getItem('tf_user');if(u)CUR_USER=JSON.parse(u);}catch(e){}
@@ -1444,6 +1437,8 @@ var _tokenClient = null;
 var _accessToken = null;
 var _pendingFn  = null;
 var _dbg        = [];
+var _signedInEmail = null;
+var _silentAuth    = false;  /* true khi đang silent token refresh — không hiện toast lỗi */
 
 /* ── GAPI / GIS callbacks ── */
 function gapiLoaded(){ /* not used — pure fetch approach */ }
@@ -1455,21 +1450,54 @@ function gisLoaded(){
       client_id: GAPI_CLIENT_ID,
       scope: GAPI_SCOPE,
       callback: function(resp){
+        var wasSilent = _silentAuth; _silentAuth = false;
         if(resp.error === 'access_denied' || resp.error === 'popup_closed_by_user'){
-          showToast('Đăng nhập bị hủy','#D97706'); return;
+          if(!wasSilent) showToast('Đăng nhập bị hủy','#D97706');
+          return;
         }
         if(resp.error){
-          showToast('OAuth lỗi: '+resp.error,'#DC2626'); return;
+          if(!wasSilent) showToast('OAuth lỗi: '+resp.error,'#DC2626');
+          return;
         }
         _accessToken = resp.access_token;
         /* Token refreshes every ~1h — set timer to clear */
-        setTimeout(function(){_accessToken=null; updateDriveUI();}, (resp.expires_in-60)*1000);
-        updateDriveUI();
-        /* Execute pending action */
-        if(_pendingFn){var fn=_pendingFn;_pendingFn=null;fn();}
+        /* Trước khi token hết hạn, thử silent refresh tự động — Google sẽ silent ok nếu
+           session vẫn còn. Nếu fail thì stop polling và để user bấm tay khi cần. */
+        setTimeout(function(){
+          if(TD.driveConnected && TD.driveFileId && _tokenClient){
+            _silentAuth = true;
+            try{ _tokenClient.requestAccessToken({prompt:''}); }
+            catch(e){ _silentAuth=false; _accessToken=null; _signedInEmail=null; _stopPolling(); updateDriveUI(); }
+          } else {
+            _accessToken=null; _signedInEmail=null; _stopPolling(); updateDriveUI();
+          }
+        }, (resp.expires_in-60)*1000);
+        /* Lay email nguoi dung - su dung scope userinfo.email da cap */
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: {'Authorization': 'Bearer '+_accessToken}
+        })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(info){
+          _signedInEmail = (info && info.email) ? info.email : null;
+        })
+        .catch(function(){ _signedInEmail = null; })
+        .finally(function(){
+          updateDriveUI();
+          /* Nếu đã có FileId từ session trước → start polling sau khi có token */
+          if(TD.driveConnected && TD.driveFileId) _startPolling();
+          if(_pendingFn){var fn=_pendingFn;_pendingFn=null;fn();}
+        });
       }
     });
-  } catch(e){ showToast('GIS init lỗi: '+e.message,'#DC2626'); }
+  } catch(e){ showToast('GIS init lỗi: '+e.message,'#DC2626'); return; }
+
+  /* AUTO RE-AUTH sau reload: nếu localStorage cho biết đã connected từ session trước,
+     thử silent token refresh (prompt:'') — Google sẽ không hiện popup nếu user vẫn đăng
+     nhập trên trình duyệt. Nếu silent fail (chưa có session) thì yên lặng, user phải bấm
+     "Đăng nhập Google" thủ công. */
+  if(TD.driveConnected && TD.driveFileId && _tokenClient){
+    try{ _silentAuth = true; _tokenClient.requestAccessToken({prompt:''}); }catch(e){ _silentAuth = false; }
+  }
 }
 
 /* ── Helpers ── */
@@ -1528,9 +1556,10 @@ function updateDriveUI(){
 
   /* Buttons */
   if(sigBtn){ sigBtn.textContent = loggedIn ? 'Đổi tài khoản' : 'Đăng nhập Google'; }
-  /* Save btn: show when logged in (either init-save or re-save) */
+  /* Save btn: chi hien voi tai khoan chu (OWNER_EMAIL), an voi nguoi dung khac */
+  var isOwner = loggedIn && (_signedInEmail === OWNER_EMAIL);
   if(savBtn){
-    savBtn.style.display = loggedIn ? '' : 'none';
+    savBtn.style.display = isOwner ? '' : 'none';
     savBtn.textContent = TD.driveFileId ? 'Lưu lên Drive' : 'Tạo file mới trên Drive';
   }
   /* Load button: show whenever there is a File ID (it handles login internally) */
@@ -1552,6 +1581,9 @@ function updateDriveUI(){
   var sa = document.getElementById('step-after-login');
   if(sb) sb.style.display = loggedIn ? 'none' : '';
   if(sa) sa.style.display = loggedIn ? '' : 'none';
+  /* Hint luu chi hien voi owner */
+  var saveHintLine = document.getElementById('save-hint-line');
+  if(saveHintLine) saveHintLine.style.display = isOwner ? '' : 'none';
   /* Update share display */
   var sdp = document.getElementById('share-file-id-display');
   if(sdp && TD.driveFileId) sdp.textContent = TD.driveFileId;
@@ -1599,17 +1631,17 @@ function driveLoad(){
     return;
   }
 
-  /* All guards passed — fetch file content */
+  /* All guards passed — fetch metadata first (for modifiedTime baseline), then content */
   var btn = document.getElementById('drive-load-btn');
   if(btn) btn.textContent = 'Đang tải...';
   showToast('Đang tải từ Drive...','#2563EB');
 
-  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media', {
+  /* Step 1: GET metadata để lấy modifiedTime — dùng làm baseline cho optimistic locking */
+  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=id,name,modifiedTime,trashed', {
     headers: {'Authorization': 'Bearer '+_accessToken}
   })
   .then(function(r){
     if(r.status === 401){
-      /* Token expired mid-session */
       _accessToken = null; updateDriveUI();
       _pendingFn = driveLoad;
       _tokenClient.requestAccessToken({prompt:''});
@@ -1617,7 +1649,7 @@ function driveLoad(){
     }
     if(r.status === 403){
       return r.json().then(function(body){
-        var reason = (body.error&&body.error.message)||'403 — File chưa được share Editor hoặc Drive API chưa bật';
+        var reason = (body.error&&body.error.message)||'403 — File chưa được share Editor cho tài khoản này';
         throw {message: reason};
       });
     }
@@ -1629,15 +1661,34 @@ function driveLoad(){
     }
     return r.json();
   })
+  .then(function(meta){
+    if(meta.trashed) throw {message: 'File đang ở Thùng rác — khôi phục trước khi dùng'};
+    /* Lưu baseline modifiedTime + tên file thật */
+    TD.driveLastModified = meta.modifiedTime || '';
+    TD.driveFileName     = meta.name || 'taskflow_data.json';
+    /* Step 2: GET content */
+    return fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media', {
+      headers: {'Authorization': 'Bearer '+_accessToken}
+    });
+  })
+  .then(function(r){
+    if(!r) return null;
+    if(!r.ok) return r.json().then(function(body){ throw body.error||{message:'HTTP '+r.status}; });
+    return r.json();
+  })
   .then(function(data){
-    if(!data || !data.tasks){
+    if(!data) return;
+    if(!data.tasks){
       throw {message: 'File không đúng định dạng TaskFlow (thiếu trường tasks)'};
     }
     TD.tasks          = data.tasks;
     TD.nextId         = data.nextId || TD.nextId;
     TD.driveConnected = true;
-    TD.driveFileName  = 'taskflow_data.json';
+    _baselineSnap     = JSON.stringify(TD.tasks);  /* baseline cho 3-way merge */
+    _dirty            = false;
+    if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
     _saveLocalDriveState();
+    _startPolling();
     updateDriveUI(); renderCurrent(); closeDriveModal();
     showToast('✓ Đã tải '+TD.tasks.length+' tasks từ Drive','#16A34A');
   })
@@ -1663,7 +1714,7 @@ function driveCreate(){
   var json  = JSON.stringify({tasks:TD.tasks, nextId:TD.nextId, createdAt:new Date().toISOString()}, null, 2);
   var mp    = _multipart({name:fname, mimeType:'application/json'}, json);
   showToast('Đang tạo file mới trên Drive...','#2563EB');
-  fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+  fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime', {
     method: 'POST',
     headers: {'Authorization':'Bearer '+_accessToken, 'Content-Type':mp.ct},
     body: mp.body
@@ -1671,9 +1722,13 @@ function driveCreate(){
   .then(function(r){ return r.json(); })
   .then(function(d){
     if(d.error) throw d.error;
-    TD.driveFileId    = d.id;
-    TD.driveFileName  = fname;
-    TD.driveConnected = true;
+    TD.driveFileId      = d.id;
+    TD.driveFileName    = fname;
+    TD.driveConnected   = true;
+    TD.driveLastModified= d.modifiedTime || '';   /* baseline cho lock */
+    _baselineSnap       = JSON.stringify(TD.tasks);
+    _dirty              = false;
+    _startPolling();
     _saveLocalDriveState(); updateDriveUI();
     /* Write File ID back into the input AND the share display */
     var fidIn = document.getElementById('drive-file-id');
@@ -1693,90 +1748,50 @@ function driveCreate(){
   });
 }
 
-/* ── Save to Drive ── */
+/* ── Save to Drive (TEAM MODE — bắt buộc File ID + dùng _flushToDrive với 3-way merge) ── */
 function driveSave(){
-  /* Guard 1: GIS ready */
   if(!_gisReady || !_tokenClient){
     showToast('Google API chưa sẵn sàng — thử tải lại trang','#DC2626'); return;
   }
-  /* Guard 2: need token */
   if(!_accessToken){
     _pendingFn = driveSave;
     _tokenClient.requestAccessToken({prompt:'select_account'}); return;
   }
-  var btn = document.getElementById('drive-save-btn');
-  if(btn) btn.textContent = 'Đang lưu...';
-
-  /* No File ID → create new file instead of failing */
   if(!TD.driveFileId){
-    if(btn) btn.textContent = 'Lưu lên Drive';
-    driveCreate(); return;
+    showToast('Chưa có File ID chung. Người tạo team phải bấm "Tạo file mới" trước, rồi share File ID cho cả team.','#DC2626');
+    return;
   }
-
-  var json = JSON.stringify({tasks:TD.tasks, nextId:TD.nextId, savedAt:new Date().toISOString()}, null, 2);
-
-  /* Step 1: verify file still exists before PATCH */
-  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=id,trashed', {
-    headers: {'Authorization': 'Bearer '+_accessToken}
-  })
-  .then(function(r){
-    if(r.status === 401){
-      _accessToken = null; updateDriveUI();
-      _pendingFn = driveSave;
-      _tokenClient.requestAccessToken({prompt:''});
-      throw {message:'__retry__'};
+  if(!TD.driveLastModified){
+    if(!confirm('Bạn chưa Tải file từ Drive trong phiên này.\n\nLưu ngay có thể GHI ĐÈ thay đổi của thành viên khác.\n\nKhuyến nghị: Đóng dialog, bấm "Tải từ Drive" trước.\n\nVẫn muốn lưu (rủi ro mất data)?')){
+      return;
     }
-    if(r.status === 404 || r.status === 403){
-      /* File gone — reset and create fresh */
-      TD.driveFileId = ''; TD.driveConnected = false; _saveLocalDriveState();
-      if(btn) btn.textContent = 'Lưu lên Drive';
-      showToast('File cũ không còn tồn tại — đang tạo file mới...','#D97706');
-      driveCreate(); return Promise.reject('__recreate__');
-    }
-    return r.json();
-  })
-  .then(function(meta){
-    if(!meta) return;
-    if(meta.trashed){
-      /* File in trash — create fresh */
-      TD.driveFileId = ''; TD.driveConnected = false; _saveLocalDriveState();
-      if(btn) btn.textContent = 'Lưu lên Drive';
-      showToast('File đã bị xóa vào thùng rác — đang tạo file mới...','#D97706');
-      driveCreate(); return;
-    }
-    /* Step 2: PATCH content */
-    return fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media', {
-      method: 'PATCH',
-      headers: {'Authorization':'Bearer '+_accessToken, 'Content-Type':'application/json'},
-      body: json
-    })
-    .then(function(r){ return (r.status===200||r.status===204) ? {} : r.json(); })
-    .then(function(d){
-      if(d && d.error) throw d.error;
-      if(btn) btn.textContent = 'Lưu lên Drive';
-      TD.driveConnected = true; _saveLocalDriveState(); updateDriveUI();
-      showToast('✓ Đã lưu lên Google Drive','#16A34A'); closeDriveModal();
-    });
-  })
-  .catch(function(e){
-    if(e === '__recreate__' || (e && e.message === '__retry__')) return;
-    if(btn) btn.textContent = 'Lưu lên Drive';
-    var msg = (typeof e==='object' && e.message) ? e.message : JSON.stringify(e);
-    showToast('Lỗi lưu: '+msg,'#DC2626'); console.error('driveSave', e);
+  }
+  /* Hủy debounce timer (nếu có) và flush ngay */
+  if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
+  _dirty = true;  /* đảm bảo flush không bị skip */
+  _flushToDrive(true).then(function(){
+    if(!_dirty) closeDriveModal();
   });
 }
 
 /* ── Auto-save (localStorage + Drive if token available) ── */
 function _saveLocalDriveState(){
   try{ localStorage.setItem('tf_drive', JSON.stringify({
-    connected:TD.driveConnected, fileId:TD.driveFileId, fileName:TD.driveFileName
+    connected:TD.driveConnected,
+    fileId:TD.driveFileId,
+    fileName:TD.driveFileName,
+    lastModified:TD.driveLastModified,
+    baselineSnap:_baselineSnap
   }));}catch(e){}
 }
 
 /* ── Hard reset Drive state (use when stuck / file deleted) ── */
 function driveReset(){
-  TD.driveConnected=false; TD.driveFileId=''; TD.driveFileName='taskflow_data.json';
-  _accessToken=null; _pendingFn=null;
+  TD.driveConnected=false; TD.driveFileId=''; TD.driveFileName='taskflow_data.json'; TD.driveLastModified='';
+  _accessToken=null; _pendingFn=null; _signedInEmail=null;
+  _baselineSnap=''; _dirty=false;
+  if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
+  _stopPolling();
   _saveLocalDriveState(); updateDriveUI();
   var fidIn=document.getElementById('drive-file-id');
   if(fidIn) fidIn.value='';
@@ -1812,23 +1827,283 @@ function showToast(msg,color,withUndo){
 }
 
 /* ══ STORAGE ══ */
+
+/* Lưu localStorage ngay lập tức (instant), schedule Drive sync sau debounce */
 function autoSave(){
+  /* 1. Local lưu ngay — không liên quan tới Drive */
   try{localStorage.setItem('tf_data',JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,notifications:TD.notifications}));}catch(e){}
   try{localStorage.setItem('tf_cfg',JSON.stringify(CFG));}catch(e){}
-  if(TD.driveConnected&&_accessToken&&TD.driveFileId){
-    var json=JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,cfg:CFG,savedAt:new Date().toISOString()},null,2);
-    fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media',{method:'PATCH',headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},body:json})
-    .then(function(r){
-      if(r.ok){var lbl=document.getElementById('gdrive-label');if(lbl){lbl.textContent='Saved \u2713';setTimeout(function(){if(TD.driveConnected)lbl.textContent='Synced \u2713';},1500);}}
-      else if(r.status===404||r.status===403){TD.driveConnected=false;TD.driveFileId='';_saveLocalDriveState();updateDriveUI();showToast('File Drive kh\u00f4ng c\u00f2n t\u1ed3n t\u1ea1i \u2014 m\u1edf Drive \u0111\u1ec3 t\u1ea1o l\u1ea1i','#D97706');}
-      else if(r.status===401){_accessToken=null;TD.driveConnected=false;_saveLocalDriveState();updateDriveUI();}
-    }).catch(function(){});
+
+  /* 2. Đánh dấu dirty + schedule Drive sync */
+  if(TD.driveConnected && TD.driveFileId){
+    _dirty = true;
+    _scheduleAutoSync();
+    var lbl=document.getElementById('gdrive-label');
+    if(lbl) lbl.textContent='Đang sửa…';
   }
 }
+
+/* Debounce: gom nhiều lần sửa liên tiếp thành 1 lần PATCH */
+function _scheduleAutoSync(){
+  if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(function(){
+    _autoSaveTimer = null;
+    _flushToDrive(false);  /* false = không phải user bấm tay */
+  }, AUTOSAVE_DEBOUNCE_MS);
+}
+
+/* ── 3-WAY MERGE: hợp nhất local + remote dựa trên baseline ──
+   Trả về { merged: [...tasks], conflicts: [{id, name, reason}] } */
+function _mergeTasks(baseTasks, localTasks, remoteTasks){
+  var byId = function(arr){ var m={}; for(var i=0;i<arr.length;i++) m[arr[i].id]=arr[i]; return m; };
+  var bMap = byId(baseTasks||[]);
+  var lMap = byId(localTasks||[]);
+  var rMap = byId(remoteTasks||[]);
+  var allIds = {};
+  for(var k in bMap) allIds[k]=1;
+  for(var k in lMap) allIds[k]=1;
+  for(var k in rMap) allIds[k]=1;
+
+  var merged = [];
+  var conflicts = [];
+  var eq = function(a,b){ return JSON.stringify(a)===JSON.stringify(b); };
+
+  for(var id in allIds){
+    var b = bMap[id], l = lMap[id], r = rMap[id];
+    var inB = !!b, inL = !!l, inR = !!r;
+
+    /* Cả 3 đều có */
+    if(inB && inL && inR){
+      var lChanged = !eq(b,l), rChanged = !eq(b,r);
+      if(!lChanged && !rChanged)      merged.push(l);     /* không ai đổi */
+      else if(lChanged && !rChanged)  merged.push(l);     /* chỉ local đổi */
+      else if(!lChanged && rChanged)  merged.push(r);     /* chỉ remote đổi */
+      else if(eq(l,r))                merged.push(l);     /* trùng kết quả */
+      else { /* CẢ HAI cùng sửa — xung đột thật */
+        conflicts.push({id:id, name:l.name||r.name, reason:'cùng sửa'});
+        merged.push(l);  /* tạm giữ local, sẽ confirm sau */
+      }
+    }
+    /* Local thêm mới (không có trong base, không có trong remote) */
+    else if(!inB && inL && !inR) merged.push(l);
+    /* Remote thêm mới */
+    else if(!inB && !inL && inR) merged.push(r);
+    /* Cả hai cùng thêm với cùng id (hiếm — id bị trùng) */
+    else if(!inB && inL && inR){
+      if(eq(l,r)) merged.push(l);
+      else { conflicts.push({id:id, name:l.name||r.name, reason:'cùng tạo trùng id'}); merged.push(l); }
+    }
+    /* Remote xóa */
+    else if(inB && !inR){
+      if(inL && !eq(b,l)){ /* local có sửa nhưng remote xóa → xung đột */
+        conflicts.push({id:id, name:l.name, reason:'remote xóa, local sửa'});
+        merged.push(l);
+      }
+      /* else: local cũng đồng ý xóa hoặc local không đổi → bỏ */
+    }
+    /* Local xóa */
+    else if(inB && !inL){
+      if(inR && !eq(b,r)){ /* remote sửa nhưng local xóa → xung đột */
+        conflicts.push({id:id, name:r.name, reason:'local xóa, remote sửa'});
+        /* không push — ưu tiên xóa, nhưng cảnh báo */
+      }
+      /* else: bỏ */
+    }
+  }
+
+  /* Sắp xếp theo id để ổn định */
+  merged.sort(function(a,b){ return a.id - b.id; });
+  return { merged: merged, conflicts: conflicts };
+}
+
+/* Flush lên Drive: GET metadata → so modifiedTime → fast path hoặc 3-way merge → PATCH */
+function _flushToDrive(isManual){
+  if(!TD.driveConnected || !TD.driveFileId || !_accessToken){ return Promise.resolve(); }
+  if(_syncing){ /* đang có flush khác chạy, retry sau */
+    if(_dirty) _scheduleAutoSync();
+    return Promise.resolve();
+  }
+  if(!_dirty && !isManual) return Promise.resolve();
+
+  _syncing = true;
+  var lbl=document.getElementById('gdrive-label');
+  if(lbl) lbl.textContent='Đang lưu…';
+
+  var localTasksSnap = JSON.parse(JSON.stringify(TD.tasks));  /* freeze local at flush start */
+  var localNextId = TD.nextId;
+
+  return fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=id,trashed,modifiedTime',{
+    headers:{'Authorization':'Bearer '+_accessToken}
+  })
+  .then(function(r){
+    if(r.status===401){ _accessToken=null; updateDriveUI(); throw {message:'__auth__'}; }
+    if(r.status===404) throw {message:'404 — File không còn tồn tại'};
+    if(r.status===403) throw {message:'403 — Mất quyền Editor'};
+    if(!r.ok) return r.json().then(function(b){ throw b.error||{message:'HTTP '+r.status}; });
+    return r.json();
+  })
+  .then(function(meta){
+    if(meta.trashed) throw {message:'File đang ở Thùng rác'};
+
+    /* FAST PATH: không ai sửa từ baseline → PATCH thẳng */
+    if(!TD.driveLastModified || meta.modifiedTime === TD.driveLastModified){
+      return _patchToDrive(localTasksSnap, localNextId);
+    }
+
+    /* SLOW PATH: có người sửa → GET content remote → 3-way merge */
+    return fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media',{
+      headers:{'Authorization':'Bearer '+_accessToken}
+    })
+    .then(function(r){ if(!r.ok) throw {message:'Không tải được bản remote'}; return r.json(); })
+    .then(function(remoteData){
+      var baseTasks = [];
+      try{ baseTasks = JSON.parse(_baselineSnap||'[]'); }catch(e){ baseTasks = []; }
+      var result = _mergeTasks(baseTasks, localTasksSnap, remoteData.tasks||[]);
+
+      if(result.conflicts.length > 0){
+        /* Có xung đột thật → hỏi user */
+        var names = result.conflicts.slice(0,5).map(function(c){ return '• '+c.name+' ('+c.reason+')'; }).join('\n');
+        var more  = result.conflicts.length>5 ? '\n… và '+(result.conflicts.length-5)+' task khác' : '';
+        var msg = '⚠ XUNG ĐỘT — Một số task được cả bạn và đồng đội cùng sửa:\n\n' +
+                  names + more + '\n\n' +
+                  '[OK]    = Ưu tiên BẢN CỦA BẠN cho các task xung đột (ghi đè data đồng đội)\n' +
+                  '[Cancel] = Hủy lưu, để bạn tự xử lý';
+        if(!confirm(msg)){
+          if(lbl) lbl.textContent='Chưa lưu ⚠';
+          throw {message:'__user_cancelled__'};
+        }
+        /* User chọn ghi đè — result.merged đã ưu tiên local cho conflict */
+      }
+
+      /* Áp merge result vào TD trước khi PATCH (để UI phản ánh state đã merge) */
+      TD.tasks  = result.merged;
+      TD.nextId = Math.max(localNextId, remoteData.nextId||0);
+      renderCurrent();
+      return _patchToDrive(TD.tasks, TD.nextId);
+    });
+  })
+  .then(function(patchResult){
+    if(!patchResult) return;
+    /* Cập nhật baseline mới */
+    TD.driveLastModified = patchResult.modifiedTime || TD.driveLastModified;
+    _baselineSnap = JSON.stringify(TD.tasks);
+    _dirty = false;
+    _saveLocalDriveState();
+    if(lbl) lbl.textContent='Synced ✓';
+    if(isManual) showToast('✓ Đã lưu lên Google Drive','#16A34A');
+  })
+  .catch(function(e){
+    if(e && e.message==='__auth__') return;
+    if(e && e.message==='__user_cancelled__'){ _syncing=false; return; }
+    if(lbl) lbl.textContent='Lỗi ⚠';
+    var msg = (e && e.message) || 'unknown';
+    if(isManual) showToast('Lỗi lưu: '+msg,'#DC2626');
+    console.error('flushToDrive', e);
+    /* Vẫn còn dirty → thử lại sau debounce */
+    if(_dirty) _scheduleAutoSync();
+  })
+  .then(function(){ _syncing = false; });
+}
+
+/* PATCH content + trả về metadata mới */
+function _patchToDrive(tasks, nextId){
+  var json = JSON.stringify({tasks:tasks, nextId:nextId, cfg:CFG, savedAt:new Date().toISOString()}, null, 2);
+  return fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media&fields=id,modifiedTime',{
+    method:'PATCH',
+    headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},
+    body:json
+  })
+  .then(function(r){
+    if(r.status===401){ _accessToken=null; updateDriveUI(); throw {message:'__auth__'}; }
+    if(!r.ok) return r.json().then(function(b){ throw b.error||{message:'HTTP '+r.status}; });
+    return r.json();
+  });
+}
+
+/* ── POLLING: phát hiện thay đổi từ user khác ── */
+function _startPolling(){
+  if(_pollTimer) return;
+  _pollTimer = setInterval(_pollOnce, POLL_INTERVAL_MS);
+}
+function _stopPolling(){
+  if(_pollTimer){ clearInterval(_pollTimer); _pollTimer=null; }
+}
+function _pollOnce(){
+  if(document.hidden) return;
+  if(!TD.driveConnected || !TD.driveFileId || !_accessToken) return;
+  if(_syncing) return;  /* đang flush, bỏ qua tick này */
+
+  fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?fields=modifiedTime,lastModifyingUser',{
+    headers:{'Authorization':'Bearer '+_accessToken}
+  })
+  .then(function(r){ if(!r.ok) return null; return r.json(); })
+  .then(function(meta){
+    if(!meta || !meta.modifiedTime) return;
+    if(meta.modifiedTime === TD.driveLastModified) return;  /* không có gì mới */
+
+    /* Có thay đổi từ remote */
+    if(_dirty){
+      /* Có local change → để auto-save flush sẽ tự merge, không reload đè data user đang gõ */
+      var lbl=document.getElementById('gdrive-label');
+      if(lbl) lbl.textContent='Có thay đổi từ team…';
+      return;
+    }
+
+    /* Không dirty → auto-reload im lặng */
+    var who = (meta.lastModifyingUser && (meta.lastModifyingUser.displayName||meta.lastModifyingUser.emailAddress)) || 'đồng đội';
+    return fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?alt=media',{
+      headers:{'Authorization':'Bearer '+_accessToken}
+    })
+    .then(function(r){ if(!r.ok) return null; return r.json(); })
+    .then(function(data){
+      if(!data || !data.tasks) return;
+      TD.tasks  = data.tasks;
+      TD.nextId = data.nextId || TD.nextId;
+      TD.driveLastModified = meta.modifiedTime;
+      _baselineSnap = JSON.stringify(TD.tasks);
+      try{localStorage.setItem('tf_data',JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,notifications:TD.notifications}));}catch(e){}
+      renderCurrent();
+      var lbl=document.getElementById('gdrive-label');
+      if(lbl) lbl.textContent='Synced ✓';
+      showToast('↻ Đã đồng bộ từ '+who,'#2563EB');
+    });
+  })
+  .catch(function(){ /* lặng lẽ */ });
+}
+
+/* Resume polling + check ngay khi tab quay lại */
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden){
+    _pollOnce();
+  }
+});
+
+/* Flush ngay trước khi đóng tab nếu còn dirty */
+window.addEventListener('beforeunload', function(){
+  if(_dirty && TD.driveConnected && _accessToken && TD.driveFileId){
+    /* Best-effort sync PATCH dùng sendBeacon-style — fetch keepalive */
+    var json = JSON.stringify({tasks:TD.tasks,nextId:TD.nextId,cfg:CFG,savedAt:new Date().toISOString()},null,2);
+    try{
+      fetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(TD.driveFileId)+'?uploadType=media',{
+        method:'PATCH',
+        headers:{'Authorization':'Bearer '+_accessToken,'Content-Type':'application/json'},
+        body:json,
+        keepalive:true
+      });
+    }catch(e){}
+  }
+});
+
 function loadSaved(){
   try{var c=localStorage.getItem('tf_cfg');if(c){var cc=JSON.parse(c);if(cc.projects&&cc.projects.length)CFG.projects=cc.projects;if(cc.members&&cc.members.length)CFG.members=cc.members;}}catch(e){}
   try{var s=localStorage.getItem('tf_data');if(s){var d=JSON.parse(s);if(d.tasks&&d.tasks.length){TD.tasks=d.tasks;TD.nextId=d.nextId||200;}if(d.notifications)TD.notifications=d.notifications;}}catch(e){}
-  try{var ds=localStorage.getItem('tf_drive');if(ds){var dd=JSON.parse(ds);TD.driveConnected=dd.connected;TD.driveFileId=dd.fileId;TD.driveFileName=dd.fileName;}}catch(e){}
+  try{var ds=localStorage.getItem('tf_drive');if(ds){var dd=JSON.parse(ds);
+    TD.driveConnected=dd.connected;
+    TD.driveFileId=dd.fileId;
+    TD.driveFileName=dd.fileName;
+    TD.driveLastModified=dd.lastModified||'';
+    _baselineSnap=dd.baselineSnap||'';
+  }}catch(e){}
 }
 
 /* ══ KEYBOARD ══ */
